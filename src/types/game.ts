@@ -27,6 +27,7 @@ export interface LessonNode {
 export interface Correction {
   userMistake: string;
   suggestedFix: string;
+  suggestedFixTranslation?: string;
   explanation: string;
 }
 

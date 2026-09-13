@@ -31,6 +31,7 @@ const evaluationSchema: Schema = {
         properties: {
           userMistake: { type: Type.STRING },
           suggestedFix: { type: Type.STRING },
+          suggestedFixTranslation: { type: Type.STRING, description: "English translation of the suggested correct fix." },
           explanation: { type: Type.STRING },
         },
         required: ["userMistake", "suggestedFix", "explanation"],

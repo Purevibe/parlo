@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ProficiencyLevel } from '../types/game';
 import { DIAGNOSTIC_QUESTION_POOL, RawQuestion, RawOption } from '../data/diagnosticQuestions';
-import { Sparkles, Award, Brain, ArrowRight, X } from 'lucide-react';
+import { Sparkles, Award, Brain, ArrowRight, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { soundEffects } from '../services/soundEffects';
 
 interface PlacementModalProps {
@@ -29,7 +29,6 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
   const [selectedOptionIdx, setSelectedOptionIdx] = useState<number | null>(null);
   const [answers, setAnswers] = useState<{ category: string; isCorrect: boolean }[]>([]);
   const [isFinished, setIsFinished] = useState<boolean>(false);
-  const [feedbackMsg, setFeedbackMsg] = useState<{ isCorrect: boolean; text: string } | null>(null);
 
   // Randomly sample 10 unique questions from the pool of 30 and shuffle answer options per question
   const activeQuestions = useMemo(() => {
@@ -48,24 +47,18 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
   if (!isOpen || activeQuestions.length === 0) return null;
 
   const currentQ = activeQuestions[currentIdx];
+  const correctOption = currentQ.options.find(o => o.isCorrect);
 
   const handleSelectOption = (idx: number) => {
     if (selectedOptionIdx !== null) return;
     setSelectedOptionIdx(idx);
     
     const chosen = currentQ.options[idx];
-    const isCorrect = chosen.isCorrect;
-
-    if (isCorrect) {
+    if (chosen.isCorrect) {
       soundEffects.playCorrectAnswer();
     } else {
       soundEffects.playHeartLost();
     }
-
-    setFeedbackMsg({
-      isCorrect,
-      text: isCorrect ? `Correct! ${chosen.explanation}` : `Incorrect. ${chosen.explanation}`
-    });
   };
 
   const handleNext = () => {
@@ -76,7 +69,6 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
     setAnswers(newAnswers);
 
     setSelectedOptionIdx(null);
-    setFeedbackMsg(null);
 
     if (currentIdx + 1 < activeQuestions.length) {
       setCurrentIdx(prev => prev + 1);
@@ -106,7 +98,6 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
     assignedLevel = 'A1_BEGINNER';
   }
 
-  // Check if numbers performance was weak (less than 50% accuracy on number questions)
   if (numbersQuestions.length > 0 && (numbersCorrect / numbersQuestions.length) < 0.5) {
     focusRecommendation = 'NUMBERS';
   }
@@ -115,6 +106,8 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
     onCompletePlacement(assignedLevel, focusRecommendation);
     onClose();
   };
+
+  const selectedOpt = selectedOptionIdx !== null ? currentQ.options[selectedOptionIdx] : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-lg flex items-center justify-center p-4">
@@ -164,11 +157,11 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
 
                   if (selectedOptionIdx !== null) {
                     if (opt.isCorrect) {
-                      borderStyle = "border-emerald-500 bg-emerald-950/60 text-emerald-300 font-bold";
+                      borderStyle = "border-emerald-500 bg-emerald-950/70 text-emerald-300 font-bold shadow-[0_0_10px_rgba(16,185,129,0.3)]";
                     } else if (isSelected) {
-                      borderStyle = "border-rose-500 bg-rose-950/60 text-rose-300 font-bold";
+                      borderStyle = "border-rose-500 bg-rose-950/70 text-rose-300 font-bold";
                     } else {
-                      borderStyle = "border-slate-800 bg-slate-950 text-slate-600 opacity-50";
+                      borderStyle = "border-slate-800 bg-slate-950 text-slate-600 opacity-40";
                     }
                   }
 
@@ -177,22 +170,57 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
                       key={idx}
                       disabled={selectedOptionIdx !== null}
                       onClick={() => handleSelectOption(idx)}
-                      className={`w-full text-left p-3.5 rounded-xl border text-xs transition-all ${borderStyle}`}
+                      className={`w-full text-left p-3.5 rounded-xl border text-xs transition-all flex items-center justify-between ${borderStyle}`}
                     >
-                      {opt.label}
+                      <span>{opt.label}</span>
+                      {selectedOptionIdx !== null && opt.translation && (
+                        <span className="text-[11px] italic font-normal text-slate-400 ml-2">
+                          "{opt.translation}"
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Instant Feedback Message */}
-              {feedbackMsg && (
-                <div className={`p-3 rounded-xl text-xs font-medium ${
-                  feedbackMsg.isCorrect 
-                    ? 'bg-emerald-950/80 border border-emerald-800 text-emerald-300'
-                    : 'bg-rose-950/80 border border-rose-900 text-rose-300'
+              {/* Detailed Correction & Translation Feedback Card */}
+              {selectedOpt && (
+                <div className={`p-3.5 rounded-2xl border text-xs space-y-1.5 animate-in fade-in duration-200 ${
+                  selectedOpt.isCorrect 
+                    ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300' 
+                    : 'bg-rose-950/80 border-rose-600/50 text-rose-300'
                 }`}>
-                  {feedbackMsg.text}
+                  <div className="flex items-center space-x-1.5 font-bold text-sm">
+                    {selectedOpt.isCorrect ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Correct!</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                        <span>Incorrect!</span>
+                      </>
+                    )}
+                  </div>
+
+                  {!selectedOpt.isCorrect && correctOption && (
+                    <div className="space-y-1 bg-slate-950/90 p-2.5 rounded-xl border border-slate-800">
+                      <p className="text-[11px] text-slate-400 uppercase font-bold">Correct Answer & Translation:</p>
+                      <p className="text-emerald-400 font-bold text-xs">
+                        "{correctOption.label}"
+                      </p>
+                      {correctOption.translation && (
+                        <p className="text-slate-300 italic text-[11px]">
+                          Translation: "{correctOption.translation}"
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="text-slate-300 text-[11px] leading-relaxed pt-0.5">
+                    {selectedOpt.explanation}
+                  </p>
                 </div>
               )}
             </div>

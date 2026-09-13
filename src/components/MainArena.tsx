@@ -8,6 +8,8 @@ export const MainArena: React.FC = () => {
     currentTurn,
     currentLesson,
     turnTimer,
+    lessonTurnCount,
+    lessonTargetTurns,
     isEvaluating,
     isSpeaking,
     speakLatestResponse,
@@ -26,17 +28,35 @@ export const MainArena: React.FC = () => {
   return (
     <div className="flex-1 max-w-md mx-auto w-full px-4 py-3 space-y-4 overflow-y-auto pb-36">
       
-      {/* Active Lesson Objective Card */}
+      {/* Active Lesson Objective Card & 5-Turn Progress Bar */}
       {currentLesson && (
-        <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-3.5 shadow-lg space-y-2">
+        <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-3.5 shadow-lg space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
               <Target className="w-4 h-4 text-emerald-400 shrink-0" />
               <span className="uppercase tracking-wider font-display">Lesson Goal</span>
             </div>
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono border border-emerald-500/30">
-              {currentLesson.title}
-            </span>
+            
+            {/* Turn Progress Counter */}
+            <div className="flex items-center space-x-1.5">
+              <span className="text-[10px] text-amber-400 font-mono font-bold uppercase">
+                Turn {Math.min(lessonTurnCount, lessonTargetTurns)} of {lessonTargetTurns}
+              </span>
+              <div className="flex space-x-1">
+                {[1, 2, 3, 4, 5].map((step) => (
+                  <span
+                    key={step}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      step < lessonTurnCount
+                        ? 'bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]'
+                        : step === lessonTurnCount
+                        ? 'bg-amber-400 animate-pulse'
+                        : 'bg-slate-800'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
 
           <p className="text-xs text-slate-100 font-medium leading-snug">

@@ -16,12 +16,15 @@ interface GameContextType {
   completedLessons: string[];
   activeView: 'hub' | 'arena';
   turnTimer: number; // 0 to 45
+  lessonTurnCount: number; // Current turn 1-5
+  lessonTargetTurns: number; // Target 5 turns
   isTimerRunning: boolean;
   isEvaluating: boolean;
   isSpeaking: boolean;
   isDefibrillatorOpen: boolean;
   isTelemetryOpen: boolean;
   isPlacementOpen: boolean;
+  isVictoryOpen: boolean;
   currentTurn: Turn | null;
   currentLesson: LessonNode | null;
   history: Turn[];
@@ -37,6 +40,7 @@ interface GameContextType {
   toggleTelemetryDrawer: () => void;
   openPlacementModal: () => void;
   closePlacementModal: () => void;
+  closeVictoryModal: () => void;
   onDefibrillatorSuccess: () => void;
   resetRun: () => void;
   speakLatestResponse: () => void;
@@ -59,12 +63,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeView, setActiveView] = useState<'hub' | 'arena'>('hub');
   
   const [turnTimer, setTurnTimer] = useState<number>(TURN_TIME_LIMIT);
+  const [lessonTurnCount, setLessonTurnCount] = useState<number>(1);
+  const [lessonTargetTurns, setLessonTargetTurns] = useState<number>(5);
+  
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isDefibrillatorOpen, setIsDefibrillatorOpen] = useState<boolean>(false);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState<boolean>(false);
   const [isPlacementOpen, setIsPlacementOpen] = useState<boolean>(false);
+  const [isVictoryOpen, setIsVictoryOpen] = useState<boolean>(false);
   
   const [history, setHistory] = useState<Turn[]>([]);
   const [currentTurn, setCurrentTurn] = useState<Turn | null>(null);
@@ -87,7 +95,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (prog.proficiencyLevel) setProficiencyLevelState(prog.proficiencyLevel);
           if (prog.completedLessons) setCompletedLessons(prog.completedLessons);
         } else {
-          // New user -> open placement quiz automatically
           setIsPlacementOpen(true);
         }
       });
@@ -103,7 +110,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (parsed.completedLessons) setCompletedLessons(parsed.completedLessons);
         } catch (e) {}
       } else {
-        // First session -> open diagnostic placement quiz automatically!
         setIsPlacementOpen(true);
       }
     }
@@ -132,7 +138,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Turn Timer countdown effect
   useEffect(() => {
     let interval: any = null;
-    if (isTimerRunning && activeView === 'arena' && turnTimer > 0 && !isEvaluating && !isDefibrillatorOpen) {
+    if (isTimerRunning && activeView === 'arena' && turnTimer > 0 && !isEvaluating && !isDefibrillatorOpen && !isVictoryOpen) {
       interval = setInterval(() => {
         setTurnTimer(prev => prev - 1);
       }, 1000);
@@ -143,7 +149,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isTimerRunning, activeView, turnTimer, isEvaluating, isDefibrillatorOpen]);
+  }, [isTimerRunning, activeView, turnTimer, isEvaluating, isDefibrillatorOpen, isVictoryOpen]);
 
   // Speak Maestro Marco's response automatically
   const speakResponse = useCallback((text: string) => {
@@ -174,36 +180,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveView('arena');
     setHearts(3);
     setStreak(0);
+    setLessonTurnCount(1);
+    setLessonTargetTurns(lesson.targetTurns || 5);
     setTurnTimer(TURN_TIME_LIMIT);
+    setIsVictoryOpen(false);
 
-    // Initial greeting tailored to lesson title & category
-    const initialGreeting = lesson.category === 'FOOD_ORDERING'
-      ? "Ciao! Benvenuto al bar di Napoli. Cosa desideri ordinare oggi?"
-      : lesson.category === 'NUMBERS'
-      ? "Ciao! Vediamo quanti euro hai in tasca. Quanto fa venticinque più quindici?"
-      : lesson.category === 'DATES_CALENDAR'
-      ? "Ciao! Dimmi, qual è la tua data di nascita o il tuo giorno preferito?"
-      : lesson.category === 'DIRECTIONS'
-      ? "Scusi! Mi siamo persi a Napoli. Come arriviamo in Piazza del Plebiscito?"
-      : "Ciao! Parliamo un po' di italiano oggi. Come stai?";
-
-    const initialTranslation = lesson.category === 'FOOD_ORDERING'
-      ? "Hello! Welcome to the bar in Naples. What would you like to order today?"
-      : lesson.category === 'NUMBERS'
-      ? "Hello! Let's see how many euros you have. How much is twenty-five plus fifteen?"
-      : lesson.category === 'DATES_CALENDAR'
-      ? "Hello! Tell me, what is your date of birth or your favorite day?"
-      : lesson.category === 'DIRECTIONS'
-      ? "Excuse me! We are lost in Naples. How do we get to Piazza del Plebiscito?"
-      : "Hello! Let's chat a bit in Italian today. How are you?";
-
+    // Initial prompt from lesson prompt sequence
+    const initialGreeting = (lesson.prompts && lesson.prompts[0]) || "Ciao! Benvenuto alla lezione!";
+    
     const initialTurn: Turn = {
       id: `lesson-init-${Date.now()}`,
       timestamp: Date.now(),
       userInput: '',
       evaluation: {
         italianResponse: initialGreeting,
-        englishTranslation: initialTranslation,
+        englishTranslation: "Hello! Welcome to the lesson!",
         isCorrect: true,
         heartsDeducted: 0,
         corrections: [],
@@ -233,6 +224,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const returnToHub = () => {
     stopSpeaking();
     setIsTimerRunning(false);
+    setIsVictoryOpen(false);
     setActiveView('hub');
   };
 
@@ -310,6 +302,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let newHearts = hearts;
       let newStreak = streak;
+      const nextTurnNum = lessonTurnCount + 1;
 
       if (evaluation.isCorrect) {
         soundEffects.playCorrectAnswer();
@@ -324,10 +317,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setXp(prev => prev + earnedXP);
         setStreak(newStreak);
 
-        // Mark lesson completed if 3 correct streak in lesson
-        if (currentLesson && newStreak >= 3 && !completedLessons.includes(currentLesson.id)) {
-          setCompletedLessons(prev => [...prev, currentLesson.id]);
+        // Advance to next unique prompt scenario if available
+        if (currentLesson?.prompts && currentLesson.prompts[nextTurnNum - 1]) {
+          evaluation.italianResponse = currentLesson.prompts[nextTurnNum - 1];
         }
+
+        setLessonTurnCount(nextTurnNum);
       } else {
         soundEffects.playHeartLost();
         newHearts = Math.max(0, hearts - evaluation.heartsDeducted);
@@ -366,7 +361,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       speakResponse(evaluation.italianResponse);
 
-      if (newHearts === 0) {
+      // Check for Lesson Completion (5 Turns Finished!)
+      if (currentLesson && nextTurnNum > (currentLesson.targetTurns || 5) && newHearts > 0) {
+        soundEffects.playDefibrillatorRevive();
+        if (!completedLessons.includes(currentLesson.id)) {
+          setCompletedLessons(prev => [...prev, currentLesson.id]);
+        }
+        setIsVictoryOpen(true);
+        setIsTimerRunning(false);
+      } else if (newHearts === 0) {
         soundEffects.playGameOver();
         setIsDefibrillatorOpen(true);
       } else {
@@ -397,6 +400,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsPlacementOpen(false);
   };
 
+  const closeVictoryModal = () => {
+    setIsVictoryOpen(false);
+    returnToHub();
+  };
+
   const onDefibrillatorSuccess = () => {
     soundEffects.playDefibrillatorRevive();
     setHearts(2);
@@ -410,6 +418,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStreak(0);
     setTurnTimer(TURN_TIME_LIMIT);
     setIsDefibrillatorOpen(false);
+    setIsVictoryOpen(false);
     setIsTimerRunning(true);
   };
 
@@ -425,12 +434,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         completedLessons,
         activeView,
         turnTimer,
+        lessonTurnCount,
+        lessonTargetTurns,
         isTimerRunning,
         isEvaluating,
         isSpeaking,
         isDefibrillatorOpen,
         isTelemetryOpen,
         isPlacementOpen,
+        isVictoryOpen,
         currentTurn,
         currentLesson,
         history,
@@ -444,6 +456,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleTelemetryDrawer,
         openPlacementModal,
         closePlacementModal,
+        closeVictoryModal,
         onDefibrillatorSuccess,
         resetRun,
         speakLatestResponse,

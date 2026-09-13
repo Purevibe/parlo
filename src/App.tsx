@@ -8,6 +8,7 @@ import { MainArena } from './components/MainArena';
 import { InputDock } from './components/InputDock';
 import { DefibrillatorModal } from './components/DefibrillatorModal';
 import { PlacementModal } from './components/PlacementModal';
+import { LessonVictoryModal } from './components/LessonVictoryModal';
 import { AuthModal } from './components/AuthModal';
 
 const AppContent: React.FC = () => {
@@ -20,8 +21,15 @@ const AppContent: React.FC = () => {
     setProficiencyLevel,
     isPlacementOpen,
     openPlacementModal,
-    closePlacementModal
+    closePlacementModal,
+    isVictoryOpen,
+    closeVictoryModal,
+    currentLesson,
+    xp,
+    telemetryData
   } = useGame();
+
+  const lastAccuracy = telemetryData.length > 0 ? telemetryData[telemetryData.length - 1].accuracy : 100;
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-950 text-slate-100 overflow-hidden font-sans selection:bg-emerald-500 selection:text-slate-950">
@@ -57,6 +65,15 @@ const AppContent: React.FC = () => {
         isOpen={isPlacementOpen}
         onClose={closePlacementModal}
         onCompletePlacement={(level) => setProficiencyLevel(level)}
+      />
+
+      {/* Lesson Victory Completion Modal */}
+      <LessonVictoryModal
+        isOpen={isVictoryOpen}
+        lesson={currentLesson}
+        xpEarned={xp}
+        accuracy={lastAccuracy}
+        onReturnToMap={closeVictoryModal}
       />
 
       {/* Auth Modal for Supabase Sync */}

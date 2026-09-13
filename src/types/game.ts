@@ -19,7 +19,9 @@ export interface LessonNode {
   xpReward: number;
   unlocked: boolean;
   completed: boolean;
+  targetTurns: number; // Default 5 turns to complete
   samplePhrases: string[];
+  prompts: string[]; // Dynamic sequence of 5 initial prompt scenarios
 }
 
 export interface Correction {

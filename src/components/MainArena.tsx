@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { FeedbackCard } from './FeedbackCard';
-import { Volume2, VolumeX, ChevronDown, ChevronUp, Clock, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, ChevronDown, ChevronUp, Clock, Sparkles, Target, Lightbulb, HelpCircle } from 'lucide-react';
 
 export const MainArena: React.FC = () => {
   const {
     currentTurn,
+    currentLesson,
     turnTimer,
-    isTimerRunning,
     isEvaluating,
     isSpeaking,
     speakLatestResponse,
     stopSpeaking,
-    hearts
   } = useGame();
 
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
+  const [showHints, setShowHints] = useState<boolean>(true);
 
   // Timer Percentage for progress ring/bar (45s max)
   const timerPercentage = Math.max(0, Math.min(100, (turnTimer / 45) * 100));
@@ -24,8 +24,53 @@ export const MainArena: React.FC = () => {
   const evaluation = currentTurn?.evaluation;
 
   return (
-    <div className="flex-1 max-w-md mx-auto w-full px-4 py-3 space-y-4 overflow-y-auto pb-32">
+    <div className="flex-1 max-w-md mx-auto w-full px-4 py-3 space-y-4 overflow-y-auto pb-36">
       
+      {/* Active Lesson Objective Card */}
+      {currentLesson && (
+        <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-3.5 shadow-lg space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+              <Target className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="uppercase tracking-wider font-display">Lesson Goal</span>
+            </div>
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono border border-emerald-500/30">
+              {currentLesson.title}
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-100 font-medium leading-snug">
+            {currentLesson.description}
+          </p>
+
+          {/* Useful Vocabulary Hints */}
+          {currentLesson.samplePhrases && currentLesson.samplePhrases.length > 0 && (
+            <div className="pt-1.5 border-t border-slate-800">
+              <button
+                onClick={() => setShowHints(!showHints)}
+                className="flex items-center space-x-1 text-[11px] text-amber-400 hover:text-amber-300 font-semibold transition-colors"
+              >
+                <Lightbulb className="w-3.5 h-3.5" />
+                <span>{showHints ? "Hide Useful Words" : "Show Useful Words & Hints"}</span>
+              </button>
+
+              {showHints && (
+                <div className="flex flex-wrap gap-1.5 mt-2 animate-in fade-in duration-150">
+                  {currentLesson.samplePhrases.map((phrase, i) => (
+                    <span
+                      key={i}
+                      className="text-[11px] bg-slate-900 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-xl font-mono shadow-sm"
+                    >
+                      💡 "{phrase}"
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 45-Second Turn Timer Bar */}
       <div className="bg-slate-950/80 p-2.5 rounded-2xl border border-slate-800 shadow-md space-y-1.5">
         <div className="flex items-center justify-between text-xs px-1 font-mono">
@@ -73,17 +118,13 @@ export const MainArena: React.FC = () => {
                 ? 'border-rose-500 ring-4 ring-rose-500/20'
                 : 'border-slate-700'
             }`}>
-              {/* Dynamic Maestro Marco SVG */}
               <svg className="w-12 h-12" viewBox="0 0 100 100">
-                {/* Italian Beret / Hat */}
                 <ellipse cx="50" cy="22" rx="32" ry="10" fill="#0f172a" />
                 <path d="M 22 22 Q 50 8 78 22 Z" fill="#1e293b" stroke="#009246" strokeWidth="3" />
                 <circle cx="50" cy="10" r="4" fill="#CE2B37" />
 
-                {/* Face */}
                 <circle cx="50" cy="48" r="24" fill="#FED7AA" />
 
-                {/* Eyes */}
                 {evaluation?.isCorrect === false ? (
                   <>
                     <path d="M 38 42 L 44 46" stroke="#451a03" strokeWidth="2.5" strokeLinecap="round" />
@@ -96,24 +137,20 @@ export const MainArena: React.FC = () => {
                   </>
                 )}
 
-                {/* Expressive Mustache */}
                 <path d="M 32 54 Q 50 62 68 54 Q 50 50 32 54 Z" fill="#292524" />
 
-                {/* Mouth / Spoken animation */}
                 {isSpeaking ? (
                   <ellipse cx="50" cy="62" rx="5" ry="4" fill="#991b1b" className="animate-pulse" />
                 ) : (
                   <path d="M 44 61 Q 50 65 56 61" stroke="#991b1b" strokeWidth="2" fill="none" />
                 )}
 
-                {/* Neapolitan Scarf Accent */}
                 <path d="M 32 68 Q 50 78 68 68 L 65 88 L 35 88 Z" fill="#009246" />
                 <path d="M 44 68 L 56 68 L 56 88 L 44 88 Z" fill="#F4F5F0" />
                 <path d="M 50 68 L 68 68 L 65 88 L 50 88 Z" fill="#CE2B37" />
               </svg>
             </div>
 
-            {/* Status Dot */}
             <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${
               isSpeaking ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500'
             }`} />
@@ -147,7 +184,6 @@ export const MainArena: React.FC = () => {
 
         {/* Spoken Speech Balloon in Italian */}
         <div className="relative bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 shadow-lg">
-          {/* Speech Bubble Arrow */}
           <div className="absolute -top-2 left-8 w-4 h-4 bg-slate-800 border-t border-l border-slate-700/80 rotate-45" />
 
           {isEvaluating ? (

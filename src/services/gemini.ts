@@ -78,25 +78,23 @@ const SYSTEM_INSTRUCTIONS = `
 You are Maestro Marco, a passionate, highly demanding yet charismatic Italian language master from Naples, Campania.
 You are running a high-stakes Italian survival dialogue drill.
 
-Your Role & Persona:
-- Speak authentic Italian with flair, warmth, and high standards.
-- Evaluate the user's Italian input rigorously.
+Evaluation Guidelines:
+- Evaluate the student's Italian input rigorously. Do NOT accept single-word fragment answers or random keyword drops.
+- Demand complete, grammatically sound Italian sentence structures (e.g. "Vorrei un espresso, per favore" instead of just "caffè").
 - Pay critical attention to cardinal numbers, dates, clock hours, food ordering etiquette, directions, and grammar rules.
-- Deduct 1 heart (heartsDeducted = 1, isCorrect = false) if the user makes a significant grammar blunder, fumbles numbers/dates/hours, or gives nonsense/English responses.
-- Award 0 heartsDeducted (isCorrect = true) if the user's response is grammatically sound and fits the conversation context.
-- Always include at least 1 authentic Campania or classic Italian idiom (*modo di dire*) with its literal and contextual meaning in idiomsAndTooltips.
-- Keep Maestro Marco's Italian response concise (1-3 sentences) and conversational so it can be comfortably spoken via Web Speech Synthesis.
-- Provide clear corrections explaining any mistakes.
+- Deduct 1 heart (heartsDeducted = 1, isCorrect = false) if the user makes a significant grammar blunder, fumbles numbers/dates/hours, or gives incomplete/nonsense/English responses.
+- Always provide clear corrections with English translations of suggested fixes explaining mistakes.
+- Keep Maestro Marco's Italian response conversational (1-3 sentences) so it can be comfortably spoken via Web Speech Synthesis.
 `;
 
 export async function evaluateTurnWithGemini(
   userInput: string,
   category: Category,
-  conversationHistory: { role: 'user' | 'model'; text: string }[]
+  conversationContext: { role: 'user' | 'model'; text: string }[]
 ): Promise<GeminiEvaluationResponse> {
   if (!apiKey) {
-    console.warn("VITE_GEMINI_API_KEY not found. Using high-fidelity intelligent local fallback engine.");
-    return generateFallbackEvaluation(userInput, category);
+    console.warn("VITE_GEMINI_API_KEY not found in .env. Using strict intelligent local fallback engine.");
+    return generateStrictFallbackEvaluation(userInput, category);
   }
 
   try {
@@ -105,8 +103,8 @@ export async function evaluateTurnWithGemini(
     const prompt = `
 Current Category Focus: ${category}
 
-Conversation History:
-${conversationHistory.map(h => `${h.role === 'user' ? 'Student' : 'Maestro Marco'}: ${h.text}`).join('\n')}
+Conversation Context:
+${conversationContext.map(h => `${h.role === 'user' ? 'Student' : 'Maestro Marco'}: ${h.text}`).join('\n')}
 
 Latest Student Input: "${userInput}"
 
@@ -133,61 +131,78 @@ Evaluate the student's Italian input. Respond with strict JSON matching the sche
     return parsed;
   } catch (err) {
     console.error("Gemini API evaluation error:", err);
-    return generateFallbackEvaluation(userInput, category);
+    return generateStrictFallbackEvaluation(userInput, category);
   }
 }
 
 /**
- * Intelligent Local Fallback Engine for offline or keyless testing
+ * Strict Local Fallback Engine (requires complete Italian sentence structures)
  */
-function generateFallbackEvaluation(userInput: string, category: Category): GeminiEvaluationResponse {
+function generateStrictFallbackEvaluation(userInput: string, category: Category): GeminiEvaluationResponse {
   const cleanInput = userInput.trim().toLowerCase();
+  const wordCount = cleanInput.split(/\s+/).length;
   
-  // Basic heuristic check for fallback
-  const isTooShort = cleanInput.length < 2;
-  const containsEnglishCommon = /\b(the|is|and|you|have|what|please|yes|no)\b/i.test(cleanInput);
-  
+  // Require at least 3 words and valid Italian phrasing structure
+  const containsEnglish = /\b(the|is|and|you|have|what|please|yes|no|want|give|coffee|water)\b/i.test(cleanInput);
+  const containsPoliteOrVerb = /\b(vorrei|vorremmo|prendo|gradirei|vorrei|sono|siamo|c'è|dov'è|quanti|quanto|grazie|per favore|buongiorno)\b/i.test(cleanInput);
+
   let isCorrect = true;
   let heartsDeducted = 0;
   const corrections = [];
 
-  if (isTooShort || containsEnglishCommon) {
+  if (wordCount < 3 || containsEnglish || !containsPoliteOrVerb) {
     isCorrect = false;
     heartsDeducted = 1;
+
+    let fix = "Vorrei un espresso e un cornetto, per favore";
+    let fixTr = "I would like an espresso and a croissant, please";
+    let explanation = "Hai usato una risposta troppo breve o senza verbo. Maestro Marco richiede una frase completa in italiano!";
+
+    if (category === "NUMBERS") {
+      fix = "Sono venticinque euro in totale";
+      fixTr = "It is twenty-five euros in total";
+      explanation = "Devi esprimere il numero o il conto con precisione in una frase completa.";
+    } else if (category === "DIRECTIONS") {
+      fix = "Giri a destra dopo la chiesa, per favore";
+      fixTr = "Turn right after the church, please";
+      explanation = "Per le indicazioni stradali usa verbi di direzione chiari come 'girare' o 'andare dritto'.";
+    }
+
     corrections.push({
-      userMistake: userInput || "(Silenzio)",
-      suggestedFix: category === "NUMBERS" ? "Centoventi" : category === "FOOD_ORDERING" ? "Vorrei un caffè per favore" : "Parla in italiano, per favore!",
-      explanation: "Hai usato l'inglese o una risposta troppo breve. Maestro Marco richiede italiano autentico!"
+      userMistake: userInput || "(Frase incompleta)",
+      suggestedFix: fix,
+      suggestedFixTranslation: fixTr,
+      explanation
     });
   }
 
   const responsesByCategory: Record<Category, { it: string; en: string; idiom: { phrase: string; lit: string; ctx: string } }> = {
+    FOOD_ORDERING: {
+      it: isCorrect 
+        ? "Eccellente! Frase perfetta. Desidera qualcos'altro prima che le porti il conto?" 
+        : "Attenzione! Al bar neapolitano diciamo 'Vorrei...' con cortesia, non usiamo frasi incomplete!",
+      en: isCorrect 
+        ? "Excellent! Perfect sentence. Would you like anything else before I bring the bill?" 
+        : "Watch out! At the Neapolitan bar we say 'I would like...' politely, we don't use incomplete fragments!",
+      idiom: { phrase: "Prendere la vita con filosofia e un buon caffè", lit: "Take life with philosophy and a good coffee", ctx: "Face adversity with calm and enjoyment" }
+    },
     NUMBERS: {
       it: isCorrect 
         ? "Molto bene! Il tuo numero è preciso. Ora dimmi: quanto fa ottanta più quarantaquattro?" 
-        : "Attenzione ai numeri! In Italia la precisione è tutto. Riproviamo con sessantasei!",
+        : "Attenzione ai numeri! In Italia la precisione è tutto. Riproviamo con una frase completa!",
       en: isCorrect 
         ? "Very good! Your number is precise. Now tell me: how much is eighty plus forty-four?" 
-        : "Watch out for numbers! In Italy precision is everything. Let us try again with sixty-six!",
+        : "Watch out for numbers! In Italy precision is everything. Let us try again with a complete sentence!",
       idiom: { phrase: "Dare i numeri", lit: "To give numbers", ctx: "To act crazy or talk nonsense" }
     },
     DATES_CALENDAR: {
       it: isCorrect 
-        ? "Eccellente! La data è corretta. Qual è il tuo giorno preferito della settimana e perché?" 
-        : "Accipicchia! Ricorda che in italiano i mesi si scrivono in minuscolo.",
+        ? "Eccellente! La data e l'ora sono corrette. A che ora ti svegli solitamente la mattina?" 
+        : "Accipicchia! Ricorda che in italiano i mesi si scrivono in minuscolo e le ore richiedono 'sono le'.",
       en: isCorrect 
-        ? "Excellent! The date is correct. What is your favorite day of the week and why?" 
-        : "Goodness! Remember that in Italian months are written in lowercase.",
+        ? "Excellent! The date and time are correct. What time do you usually wake up in the morning?" 
+        : "Goodness! Remember that in Italian months are lowercase and hours require 'sono le'.",
       idiom: { phrase: "Ogni morte di papa", lit: "Every death of a pope", ctx: "Once in a blue moon" }
-    },
-    FOOD_ORDERING: {
-      it: isCorrect 
-        ? "Perfetto! Un bell'espresso e un cornetto caldo. Desidera qualcos'altro al banco?" 
-        : "Attento! Al bar diciamo 'Vorrei...' con cortesia, non comandiamo!",
-      en: isCorrect 
-        ? "Perfect! A nice espresso and a warm croissant. Would you like anything else at the counter?" 
-        : "Careful! At the bar we say 'I would like...' politely, we don't command!",
-      idiom: { phrase: "Prendere la vita con filosofia e un buon caffè", lit: "Take life with philosophy and a good coffee", ctx: "Face adversity with calm and enjoyment" }
     },
     DIRECTIONS: {
       it: isCorrect 
@@ -201,10 +216,10 @@ function generateFallbackEvaluation(userInput: string, category: Category): Gemi
     GENERAL_BANTER: {
       it: isCorrect 
         ? "Che bella parlata! Mi piace il tuo entusiasmo. Dimmi, cosa fai durante la bella stagione?" 
-        : "Mamma mia! La grammatica ha tentennato qui. Respira e riprova con grinta!",
+        : "Mamma mia! La grammatica ha tentennato qui. Respira e riprova con una frase completa!",
       en: isCorrect 
         ? "What a lovely speech! I love your enthusiasm. Tell me, what do you do during the warm season?" 
-        : "Mamma mia! The grammar faltered here. Breathe and try again with passion!",
+        : "Mamma mia! The grammar faltered here. Breathe and try again with a complete sentence!",
       idiom: { phrase: "Mettici un punto e a capo", lit: "Put a period and new paragraph", ctx: "Make a fresh new start" }
     }
   };

@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build Output
+dist/
+dist-ssr/
+
+# Local Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# IDE & System Files
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

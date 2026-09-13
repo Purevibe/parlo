@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="flame" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="50%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <!-- Italian Tricolore Accent Arc -->
+  <path d="M 96 128 L 136 128" stroke="#009246" stroke-width="24" stroke-linecap="round"/>
+  <path d="M 236 128 L 276 128" stroke="#F4F5F0" stroke-width="24" stroke-linecap="round"/>
+  <path d="M 376 128 L 416 128" stroke="#CE2B37" stroke-width="24" stroke-linecap="round"/>
+  <!-- Flame Icon -->
+  <path d="M256 120 C256 120, 180 230, 180 320 C180 376, 214 416, 256 416 C298 416, 332 376, 332 320 C332 230, 256 120, 256 120 Z M256 384 C230 384, 210 358, 210 326 C210 274, 256 200, 256 200 C256 200, 302 274, 302 326 C302 358, 282 384, 256 384 Z" fill="url(#flame)"/>
+  <!-- Heart Icon overlay -->
+  <path d="M256 300 C240 280, 220 280, 210 295 C200 310, 205 330, 225 348 L256 375 L287 348 C307 330, 312 310, 302 295 C292 280, 272 280, 256 300 Z" fill="#ef4444"/>
+</svg>

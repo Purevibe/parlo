@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ProficiencyLevel } from '../types/game';
+import { DIAGNOSTIC_QUESTION_POOL, RawQuestion, RawOption } from '../data/diagnosticQuestions';
 import { Sparkles, Award, Brain, ArrowRight, X } from 'lucide-react';
 import { soundEffects } from '../services/soundEffects';
 
@@ -9,78 +10,7 @@ interface PlacementModalProps {
   onCompletePlacement: (level: ProficiencyLevel, focusCategory?: string) => void;
 }
 
-interface RawOption {
-  label: string;
-  isCorrect: boolean;
-  explanation: string;
-}
-
-interface RawQuestion {
-  id: number;
-  category: 'CONVERSATION' | 'FOOD' | 'NUMBERS' | 'TIME' | 'GRAMMAR';
-  questionText: string;
-  options: RawOption[];
-}
-
-const RAW_DIAGNOSTIC_QUESTIONS: RawQuestion[] = [
-  {
-    id: 1,
-    category: 'CONVERSATION',
-    questionText: "Choose the most natural way to say 'Pleased to meet you' in Italian:",
-    options: [
-      { label: "Piacere di conoscerti", isCorrect: true, explanation: "Standard polite greeting used throughout Italy." },
-      { label: "Molto bene grazie", isCorrect: false, explanation: "Means 'Very well, thank you'." },
-      { label: "Come ti chiami?", isCorrect: false, explanation: "Means 'What is your name?'." },
-      { label: "Per favore ciao", isCorrect: false, explanation: "Literal translation mashup." },
-    ]
-  },
-  {
-    id: 2,
-    category: 'FOOD',
-    questionText: "How do you politely order an espresso and a croissant at a Neapolitan bar?",
-    options: [
-      { label: "Vorrei un espresso e un cornetto, per favore", isCorrect: true, explanation: "Correct conditional form 'Vorrei' (I would like)." },
-      { label: "Dammi un caffè adesso!", isCorrect: false, explanation: "Too blunt ('Give me a coffee right now!')." },
-      { label: "Io prendere caffè", isCorrect: false, explanation: "Incorrect infinitive verb usage." },
-      { label: "Caffè con zucchero subito", isCorrect: false, explanation: "Commanding phrasing." },
-    ]
-  },
-  {
-    id: 3,
-    category: 'NUMBERS',
-    questionText: "What number is 'Centoventinove' in digits?",
-    options: [
-      { label: "129", isCorrect: true, explanation: "Cento (100) + venti (20) + nove (9) = 129." },
-      { label: "119", isCorrect: false, explanation: "119 is 'Centodiciannove'." },
-      { label: "149", isCorrect: false, explanation: "149 is 'Centoquarantanove'." },
-      { label: "229", isCorrect: false, explanation: "229 is 'Duecentoventinove'." },
-    ]
-  },
-  {
-    id: 4,
-    category: 'NUMBERS',
-    questionText: "Calculate the total price: 'Cinquanta più trentacinque euro'",
-    options: [
-      { label: "85 €", isCorrect: true, explanation: "50 (cinquanta) + 35 (trentacinque) = 85 €." },
-      { label: "75 €", isCorrect: false, explanation: "75 is 'settantacinque'." },
-      { label: "65 €", isCorrect: false, explanation: "65 is 'sessantacinque'." },
-      { label: "95 €", isCorrect: false, explanation: "95 is 'novantacinque'." },
-    ]
-  },
-  {
-    id: 5,
-    category: 'TIME',
-    questionText: "What time is 'Le sette e un quarto'?",
-    options: [
-      { label: "7:15", isCorrect: true, explanation: "7 (sette) and a quarter (un quarto) = 7:15." },
-      { label: "7:30", isCorrect: false, explanation: "7:30 is 'Le sette e mezza'." },
-      { label: "7:45", isCorrect: false, explanation: "7:45 is 'Le otto meno un quarto'." },
-      { label: "6:45", isCorrect: false, explanation: "6:45 is 'Le sette meno un quarto'." },
-    ]
-  }
-];
-
-// Helper to shuffle array randomly
+// Fisher-Yates array shuffler helper
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -101,17 +31,23 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ isCorrect: boolean; text: string } | null>(null);
 
-  // Shuffle question options every time modal opens or resets
-  const questions = useMemo(() => {
-    return RAW_DIAGNOSTIC_QUESTIONS.map(q => ({
+  // Randomly sample 10 unique questions from the pool of 30 and shuffle answer options per question
+  const activeQuestions = useMemo(() => {
+    if (!isOpen) return [];
+    
+    // Sample 10 unique questions
+    const sampledPool = shuffleArray(DIAGNOSTIC_QUESTION_POOL).slice(0, 10);
+    
+    // For each question, shuffle option order dynamically
+    return sampledPool.map(q => ({
       ...q,
       options: shuffleArray(q.options)
     }));
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || activeQuestions.length === 0) return null;
 
-  const currentQ = questions[currentIdx];
+  const currentQ = activeQuestions[currentIdx];
 
   const handleSelectOption = (idx: number) => {
     if (selectedOptionIdx !== null) return;
@@ -142,30 +78,36 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
     setSelectedOptionIdx(null);
     setFeedbackMsg(null);
 
-    if (currentIdx + 1 < questions.length) {
+    if (currentIdx + 1 < activeQuestions.length) {
       setCurrentIdx(prev => prev + 1);
     } else {
       setIsFinished(true);
     }
   };
 
-  // Calculate diagnostic result
+  // 10-Question Diagnostic Skill Analysis
   const totalCorrect = answers.filter(a => a.isCorrect).length;
-  const numbersCorrect = answers.filter(a => a.category === 'NUMBERS' && a.isCorrect).length;
-  const conversationCorrect = answers.filter(a => (a.category === 'CONVERSATION' || a.category === 'FOOD') && a.isCorrect).length;
+  const numbersQuestions = answers.filter(a => a.category === 'NUMBERS');
+  const numbersCorrect = numbersQuestions.filter(a => a.isCorrect).length;
+  
+  const conversationQuestions = answers.filter(a => a.category === 'CONVERSATION' || a.category === 'FOOD');
+  const conversationCorrect = conversationQuestions.filter(a => a.isCorrect).length;
 
   let assignedLevel: ProficiencyLevel = 'A1_BEGINNER';
   let focusRecommendation = '';
 
-  if (totalCorrect >= 4) {
+  if (totalCorrect >= 8) {
+    assignedLevel = 'B2_ADVANCED';
+  } else if (totalCorrect >= 6) {
     assignedLevel = 'B1_INTERMEDIATE';
-  } else if (totalCorrect >= 2) {
+  } else if (totalCorrect >= 3) {
     assignedLevel = 'A2_ELEMENTARY';
   } else {
     assignedLevel = 'A1_BEGINNER';
   }
 
-  if (numbersCorrect < 2) {
+  // Check if numbers performance was weak (less than 50% accuracy on number questions)
+  if (numbersQuestions.length > 0 && (numbersCorrect / numbersQuestions.length) < 0.5) {
     focusRecommendation = 'NUMBERS';
   }
 
@@ -194,10 +136,10 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
                 <Brain className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-black text-slate-100 font-display">
-                Italian Placement Diagnostic
+                Italian Skill Assessment
               </h3>
               <p className="text-xs text-slate-400">
-                Question {currentIdx + 1} of {questions.length}: Test your real skills
+                Question {currentIdx + 1} of {activeQuestions.length}: Test your Italian knowledge
               </p>
             </div>
 
@@ -205,7 +147,7 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
             <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
               <div
                 className="h-full bg-emerald-500 transition-all duration-300"
-                style={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }}
+                style={{ width: `${((currentIdx + 1) / activeQuestions.length) * 100}%` }}
               />
             </div>
 
@@ -261,7 +203,7 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
                 onClick={handleNext}
                 className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center justify-center space-x-2 animate-in fade-in"
               >
-                <span>{currentIdx + 1 === questions.length ? "View My Assessment Results" : "Next Question"}</span>
+                <span>{currentIdx + 1 === activeQuestions.length ? "View Skill Diagnosis Results" : "Next Question"}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -279,7 +221,7 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
                 Diagnostic Complete!
               </h3>
               <p className="text-xs text-slate-300">
-                You scored <strong className="text-emerald-400 font-mono text-sm">{totalCorrect} / {questions.length}</strong> correct.
+                You scored <strong className="text-emerald-400 font-mono text-sm">{totalCorrect} / {activeQuestions.length}</strong> correct.
               </p>
             </div>
 
@@ -289,15 +231,15 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
               
               <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
                 <span className="text-slate-200">Conversation & Food Etiquette</span>
-                <span className={`font-bold ${conversationCorrect >= 1 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {conversationCorrect >= 1 ? 'Solid (Passed)' : 'Needs Practice'}
+                <span className={`font-bold ${conversationQuestions.length > 0 && (conversationCorrect / conversationQuestions.length) >= 0.5 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {conversationQuestions.length > 0 && (conversationCorrect / conversationQuestions.length) >= 0.5 ? 'Solid' : 'Needs Practice'}
                 </span>
               </div>
 
               <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span className="text-slate-200">Italian Numbers & Math</span>
-                <span className={`font-bold ${numbersCorrect >= 2 ? 'text-emerald-400' : 'text-amber-400 font-mono'}`}>
-                  {numbersCorrect >= 2 ? 'Mastered' : 'Needs Practice!'}
+                <span className="text-slate-200">Italian Numbers & Prices</span>
+                <span className={`font-bold ${numbersQuestions.length > 0 && (numbersCorrect / numbersQuestions.length) >= 0.5 ? 'text-emerald-400' : 'text-amber-400 font-mono'}`}>
+                  {numbersQuestions.length > 0 && (numbersCorrect / numbersQuestions.length) >= 0.5 ? 'Mastered' : 'Focus Area!'}
                 </span>
               </div>
             </div>
@@ -309,7 +251,9 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
                 <span>Personalized Starting Level:</span>
               </div>
               <p className="text-slate-200 font-medium">
-                Assigned to <strong className="text-emerald-400">Level 2: I Numeri e il Conto</strong> to sharpen your Italian numbers & prices!
+                {focusRecommendation === 'NUMBERS' 
+                  ? <>Assigned to <strong className="text-emerald-400">Level 2: I Numeri e il Conto</strong> to focus on mastering Italian numbers!</>
+                  : <>Assigned to starting level <strong className="text-emerald-400">{assignedLevel}</strong>!</>}
               </p>
             </div>
 

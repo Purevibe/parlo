@@ -84,7 +84,7 @@ export const LessonHub: React.FC<LessonHubProps> = ({
         >
           <div className="flex items-center space-x-1.5 text-emerald-400 font-medium">
             <HelpCircle className="w-4 h-4" />
-            <span>How Maestro Marco Works (Game Rules)</span>
+            <span>How Parlo Works (Game Rules)</span>
           </div>
           <span className="text-slate-500 font-bold">{showHowToPlay ? 'Hide' : 'Show'}</span>
         </button>

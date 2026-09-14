@@ -75,7 +75,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <h3 className="text-xl font-extrabold text-slate-100 font-display">
-            {isSignUp ? 'Create Account' : 'Sign in to Maestro Marco'}
+            {isSignUp ? 'Create Account' : 'Sign in to Parlo'}
           </h3>
           <p className="text-xs text-slate-400">
             Sync your XP, hearts, and analytics across all your devices.

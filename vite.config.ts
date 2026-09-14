@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Maestro Marco - High Stakes Gamified Italian',
-        short_name: 'MaestroMarco',
+        name: 'Parlo - High-Stakes Gamified Italian',
+        short_name: 'Parlo',
         description: 'High-stakes gamified Italian survival dialogue powered by Gemini AI and real voice recognition',
         theme_color: '#0f172a',
         background_color: '#0f172a',

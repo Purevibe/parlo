@@ -35,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
           )}
           
           <h1 className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-400 bg-clip-text text-transparent font-display">
-            Maestro Marco
+            Parlo
           </h1>
         </div>
 

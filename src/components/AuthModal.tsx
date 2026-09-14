@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
-import { X, Mail, Lock, LogIn, UserPlus, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { X, Mail, Lock, LogIn, UserPlus, ShieldCheck, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -8,6 +9,8 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+  const { signUpLocal, signInLocal } = useAuth();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -29,26 +32,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (!supabase) {
-      setMessage({ type: 'error', text: 'Supabase client is not configured in environment variables.' });
-      return;
-    }
-
     setLoading(true);
     setMessage(null);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setMessage({ type: 'success', text: 'Registration successful! Check your email to confirm.' });
+      if (supabase && isSupabaseConfigured) {
+        // Cloud Supabase Auth
+        if (isSignUp) {
+          const { error } = await supabase.auth.signUp({ email, password });
+          if (error) throw error;
+          setMessage({ type: 'success', text: 'Registration successful! Check your email to confirm.' });
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          setMessage({ type: 'success', text: 'Signed in successfully!' });
+          setTimeout(() => {
+            onClose();
+          }, 800);
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        setMessage({ type: 'success', text: 'Signed in successfully!' });
+        // Local Account Provider (Zero-Config fallback)
+        if (isSignUp) {
+          signUpLocal(email);
+          setMessage({ type: 'success', text: 'Account created successfully! Welcome to Parlo.' });
+        } else {
+          signInLocal(email);
+          setMessage({ type: 'success', text: 'Signed in successfully!' });
+        }
         setTimeout(() => {
           onClose();
-        }, 1000);
+        }, 800);
       }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Authentication error.' });
@@ -75,21 +88,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <h3 className="text-xl font-extrabold text-slate-100 font-display">
-            {isSignUp ? 'Create Account' : 'Sign in to Parlo'}
+            {isSignUp ? 'Create Parlo Account' : 'Sign in to Parlo'}
           </h3>
           <p className="text-xs text-slate-400">
-            Sync your XP, hearts, and analytics across all your devices.
+            Sync your XP, hearts, and roadmap progress across sessions.
           </p>
         </div>
 
-        {!isSupabaseConfigured && (
-          <div className="bg-amber-950/40 border border-amber-500/30 p-3 rounded-xl text-xs text-amber-300">
-            <p className="font-bold">Guest Mode Active</p>
-            <p className="text-[11px] text-amber-400/80 mt-0.5">
-              Configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file to enable cloud sync. Your progress is saved locally in your browser storage.
-            </p>
+        {/* Account Mode Status Badge */}
+        <div className="bg-slate-950/90 border border-slate-800 p-2.5 rounded-xl text-xs flex items-center justify-between text-slate-300">
+          <div className="flex items-center space-x-1.5 font-semibold text-emerald-400">
+            <Sparkles className="w-4 h-4" />
+            <span>{isSupabaseConfigured ? 'Supabase Cloud Auth' : 'Parlo User Account'}</span>
           </div>
-        )}
+          <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-mono border border-emerald-800">
+            Active
+          </span>
+        </div>
 
         {message && (
           <div className={`p-3 rounded-xl text-xs font-medium ${
@@ -158,7 +173,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
           <button
             type="submit"
-            disabled={loading || !isSupabaseConfigured || (isSignUp && !isMinLength)}
+            disabled={loading || (isSignUp && !isMinLength)}
             className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs uppercase tracking-wider transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.3)] disabled:opacity-40 flex items-center justify-center space-x-2"
           >
             {loading ? (
@@ -166,7 +181,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             ) : isSignUp ? (
               <>
                 <UserPlus className="w-4 h-4" />
-                <span>Sign Up</span>
+                <span>Create Account & Register</span>
               </>
             ) : (
               <>
